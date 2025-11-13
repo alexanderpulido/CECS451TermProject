@@ -14,66 +14,57 @@ app.add_middleware(
 
 class ForecastIn(BaseModel):
     weights: dict              # {"Homework":0.2,"Midterm":0.3,"Final":0.5}
-    completed: dict            # {"Homework":[92,88,95], "Midterm":[81]}
+    completed: dict            # {"Homework":[92,88,95], "Midterm":[81]}  (0–100)
     remaining: dict            # {"Homework":2, "Final":1}
-    priors: dict | None = None # {"Homework":{"mu":90,"sigma":5}, ...}
-
-@app.get("/health")
-def health(): return {"ok": True}
+    # set per-category linear params and priors
+    linear_params: dict | None = None   # {"Homework":{"alpha":0,"beta":1}, ...}
+    priors: dict | None = None          # {"Homework":{"sigma":7}, ...}
+    z: float = 1.28                     # interval width (≈80%)
 
 @app.post("/api/forecast")
-def forecast(inp: ForecastIn):
-    # Very simple Monte Carlo per-category (replace with quantile/Bayesian later)
-    sims = 10_000
-    totals = []
-    for _ in range(sims):
-        total = 0.0
-        for cat, w in inp.weights.items():
-            done = inp.completed.get(cat, [])
-            k_rem = inp.remaining.get(cat, 0)
-            mu, sigma = 85, 7
-            if inp.priors and cat in inp.priors:
-                mu = inp.priors[cat].get("mu", mu)
-                sigma = inp.priors[cat].get("sigma", sigma)
-            future = list(np.clip(np.random.normal(mu, sigma, k_rem), 0, 100))
-            cat_scores = done + future
-            if len(cat_scores) > 0:
-                total += w * (np.mean(cat_scores))
-        totals.append(total)
-    totals = np.array(totals)
-    return {
-        "mean": float(np.mean(totals)),
-        "p10": float(np.percentile(totals, 10)),
-        "p50": float(np.percentile(totals, 50)),
-        "p90": float(np.percentile(totals, 90))
-    }
+def forecast_linear(inp: ForecastIn):
+    pred_final = 0.0
+    var_final = 0.0
 
-class ScenarioIn(BaseModel):
-    target: float
-    weights: dict
-    completed_avgs: dict
-    remaining_items: dict      # {"Homework":[2], "Final":[1]}
-    bounds: dict = {"min":50,"max":100}
+    for cat, w in inp.weights.items():
+        done = np.array(inp.completed.get(cat, []), dtype=float)
+        k_done = len(done)
+        k_rem = int(inp.remaining.get(cat, 0))
+        n_total = k_done + k_rem
+        if n_total == 0:
+            continue
 
-@app.post("/api/scenario")
-def scenario(inp: ScenarioIn):
-    # Greedy: push high-weight categories toward target first
-    plan = {}
-    current = sum(inp.weights.get(c,0)*v for c,v in inp.completed_avgs.items())
-    needed = inp.target - current
-    if needed <= 0: return {"plan": {}, "feasible": True}
+        # observed mean and std
+        mu_done = float(done.mean()) if k_done > 0 else 0.0
+        sigma_obs = float(done.std(ddof=1)) if k_done > 1 else None
 
-    items = []
-    for c, arr in inp.remaining_items.items():
-        for _ in arr:
-            items.append((c, inp.weights.get(c,0)))
-    items.sort(key=lambda x: x[1], reverse=True)
+        # linear expectation for future
+        params = (inp.linear_params or {}).get(cat, {})
+        alpha = float(params.get("alpha", 0.0))
+        beta  = float(params.get("beta", 1.0))
+        mu_future = alpha + beta * (mu_done if k_done > 0 else 85.0)
 
-    for c, w in items:
-        if needed <= 0: break
-        gain = w * (inp.bounds["max"] - inp.completed_avgs.get(c, 0))
-        score = inp.bounds["max"]
-        plan.setdefault(c, []).append(score)
-        needed -= w * (score - inp.completed_avgs.get(c,0))
+        # blended category mean
+        mu_cat = ((k_done * mu_done) + (k_rem * mu_future)) / n_total
+        pred_final += w * mu_cat
 
-    return {"plan": plan, "feasible": needed <= 0}
+        # uncertainty for category: use observed sigma or prior
+        prior_sigma = float(((inp.priors or {}).get(cat, {})).get("sigma", 7.0))
+        sigma_c = sigma_obs if sigma_obs is not None else prior_sigma
+
+        # variance of the blended estimate, scaled by weight
+        # intuition: more remaining items -> more uncertainty
+        if k_rem > 0:
+            # a simple variance model for now for the mean of remaining items
+            var_cat = ((k_rem / n_total) ** 2) * (sigma_c ** 2 / (k_rem + 1e-9))
+        else:
+            var_cat = 0.0
+
+        var_final += (w ** 2) * var_cat
+
+    std_final = float(np.sqrt(max(var_final, 1e-9)))
+    low = pred_final - inp.z * std_final
+    med = pred_final
+    high = pred_final + inp.z * std_final
+
+    return {"mean": med, "p10": low, "p90": high, "std": std_final} # p are the percentiles

@@ -1,7 +1,10 @@
 import { useEffect } from 'react'
 import { useCourses } from './stores/courses'
+import SyllabusParser from './components/SyllabusParser'
+import ImportCSV from './components/ImportCSV'
 import CourseDetail from './components/CourseDetail'
 import ForecastPanel from './components/ForecastPanel'
+
 
 export default function App() {
   const { courses, load, addCourse, existsByName } = useCourses()
@@ -24,10 +27,15 @@ export default function App() {
       <h3 style={{ marginTop: 16 }}>Courses</h3>
       <ul>{courses.map(c => <li key={c.id}>{c.name} (Target {c.target ?? '-' }%)</li>)}</ul>
 
-      {selected && <>
-        <CourseDetail courseId={selected.id!} />
-        <ForecastPanel courseId={selected.id!} />
-      </>}
+      {selected && (
+        <>
+          <SyllabusParser courseId={selected.id!} />
+          <ImportCSV courseId={selected.id!} />
+          <CourseDetail courseId={selected.id!} />
+          <ForecastPanel courseId={selected.id!} />
+        </>
+      )}
+
     </div>
   )
 }
