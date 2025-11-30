@@ -1,23 +1,73 @@
 import { useState } from 'react'
-import { forecast } from '../lib/api'
 import { buildForecastPayload } from '../lib/payload'
+import ForecastChart from './ForecastChart'
+
+type ForecastResult = {
+  mean: number
+  p10: number
+  p90: number
+  std: number
+}
 
 export default function ForecastPanel({ courseId }: { courseId: number }) {
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<ForecastResult | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const run = async () => {
-    const payload = await buildForecastPayload(courseId)
-    console.log('forecast payload →', payload)   // verify weights/completed/remaining
-    const data = await forecast(payload)
-    setResult(data)
+    try {
+      setLoading(true)
+      setError(null)
+      const payload = await buildForecastPayload(courseId)
+      const res = await fetch('http://localhost:8000/api/forecast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setResult(data)
+    } catch (err: any) {
+      setError('Could not run forecast. Is the backend server running?')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div style={{ marginTop: 24, border: '1px solid #ddd', padding: 12 }}>
-      <button onClick={run}>Run Forecast</button>{' '}
-      {result && (
-        <>Mean: {result.mean.toFixed(1)} | P10: {result.p10.toFixed(1)} | P90: {result.p90.toFixed(1)}</>
+    <section style={{ border: '1px solid #333', padding: 12, borderRadius: 4, marginBottom: 16 }}>
+      <h3 style={{ marginTop: 0 }}>Step 4 – Forecast Final Grade</h3>
+      <p style={{ marginTop: 0, color: '#bbbbbb', fontSize: 13 }}>
+        The model uses your completed assignments and syllabus weights to estimate your final grade and a likely range.
+      </p>
+
+      <button onClick={run} disabled={loading}>
+        {loading ? 'Running…' : 'Run Forecast'}
+      </button>
+
+      {error && (
+        <div style={{ marginTop: 8, color: '#ff6b6b', fontSize: 13 }}>
+          {error}
+        </div>
       )}
-    </div>
+
+      {result && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 14 }}>
+            <strong>Expected Grade (Mean):</strong> {result.mean.toFixed(1)}%
+            <br />
+            <strong>Likely Range (P10–P90):</strong>{' '}
+            {result.p10.toFixed(1)}% – {result.p90.toFixed(1)}%
+          </div>
+          <p style={{ marginTop: 4, fontStyle: 'italic', color: '#aaaaaa', fontSize: 13 }}>
+            This range means the model expects your final grade to fall inside this interval
+            about 80% of the time, given your current performance.
+          </p>
+
+          <ForecastChart mean={result.mean} p10={result.p10} p90={result.p90} />
+        </div>
+      )}
+    </section>
   )
 }

@@ -1,145 +1,174 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useCategories } from '../stores/categories'
-import { useAssignments } from '../stores/assignments'
+import { useEffect, useState } from 'react'
 import { db } from '../lib/db'
+import type { Category, Assignment } from '../lib/db'
 
 export default function CourseDetail({ courseId }: { courseId: number }) {
-  // stores
-  const { list: cats, load: loadCats, add: addCat, remove: removeCat } = useCategories()
-  const { list: asg, load: loadAsg, add: addAsg, remove: removeAsg } = useAssignments()
+  const [categories, setCategories] = useState<Category[]>([])
+  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [newCatName, setNewCatName] = useState('')
+  const [newCatWeight, setNewCatWeight] = useState('0.1')
+  const [newTitle, setNewTitle] = useState('')
+  const [newScore, setNewScore] = useState('')
+  const [newMax, setNewMax] = useState('')
+  const [newCatId, setNewCatId] = useState<number | ''>('')
 
-  // tiny local form state
-  const [catName, setCatName] = useState('')
-  const [catWeight, setCatWeight] = useState<number | ''>('')
-  const [aTitle, setATitle] = useState('')
-  const [aScore, setAScore] = useState<string>('') // string so empty = remaining
-  const [aMax, setAMax] = useState<string>('')
-  const [aCatId, setACatId] = useState<string>('')
+  const loadData = async () => {
+    const cats = await db.categories.where('courseId').equals(courseId).toArray()
+    const asgn = await db.assignments.where('courseId').equals(courseId).toArray()
+    setCategories(cats)
+    setAssignments(asgn)
+  }
 
-  // load data on mount & when course changes
   useEffect(() => {
-    loadCats(courseId)
-    loadAsg(courseId)
-  }, [courseId, loadCats, loadAsg])
+    loadData()
+  }, [courseId])
 
-  const totalWeight = useMemo(
-    () => cats.reduce((s, c) => s + Number(c.weight || 0), 0),
-    [cats]
-  )
+  const totalWeight = categories.reduce((sum, c) => sum + c.weight, 0)
 
   const addCategory = async () => {
-    if (!catName || catWeight === '') return
-    await addCat({ courseId, name: catName.trim(), weight: Number(catWeight) })
-    setCatName(''); setCatWeight('')
+    if (!newCatName.trim()) return
+    const weight = Number(newCatWeight)
+    await db.categories.add({ courseId, name: newCatName.trim(), weight })
+    setNewCatName('')
+    setNewCatWeight('0.1')
+    await loadData()
+  }
+
+  const deleteCategory = async (id: number) => {
+    await db.categories.delete(id)
+    await db.assignments.where('categoryId').equals(id).delete()
+    await loadData()
   }
 
   const addAssignment = async () => {
-    const categoryId = Number(aCatId)
-    if (!aTitle || !aMax || !categoryId) return
-    await addAsg({
+    if (!newTitle.trim() || !newMax || !newCatId) return
+    await db.assignments.add({
       courseId,
-      categoryId,
-      title: aTitle.trim(),
-      score: aScore === '' ? undefined : Number(aScore),
-      max: Number(aMax),
+      categoryId: newCatId as number,
+      title: newTitle.trim(),
+      score: newScore ? Number(newScore) : undefined,
+      max: Number(newMax)
     })
-    setATitle(''); setAScore(''); setAMax(''); setACatId('')
+    setNewTitle('')
+    setNewScore('')
+    setNewMax('')
+    setNewCatId('')
+    await loadData()
   }
 
-  // helper: get category name for assignment row
-  const catNameById = (id?: number) => cats.find(c => c.id === id)?.name ?? `cat #${id}`
+  const deleteAssignment = async (id: number) => {
+    await db.assignments.delete(id)
+    await loadData()
+  }
 
-  // nuke everything in this course
   const clearCourseData = async () => {
-    await db.assignments.where('courseId').equals(courseId).delete()
     await db.categories.where('courseId').equals(courseId).delete()
-    await loadAsg(courseId)
-    await loadCats(courseId)
+    await db.assignments.where('courseId').equals(courseId).delete()
+    await loadData()
   }
 
   return (
-    <div style={{ border:'1px solid #444', padding:12, marginTop:16 }}>
-      <h3>Course Detail</h3>
-      <div>Categories total weight: <b>{totalWeight.toFixed(2)}</b> (aim for 1.0)</div>
+    <section style={{ border: '1px solid #333', padding: 12, borderRadius: 4, marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ marginTop: 0 }}>Step 3 – Review &amp; Edit Course Detail</h3>
+          <p style={{ margin: '0 0 4px', color: '#bbbbbb', fontSize: 13 }}>
+            View and edit grading categories and assignments for this course.
+          </p>
+          <span style={{ fontSize: 13 }}>
+            Categories total weight: {totalWeight.toFixed(2)} (aim for 1.0)
+          </span>
+        </div>
+        <button onClick={clearCourseData}>Clear Course Data</button>
+      </div>
 
       {/* Add Category */}
-      <h4 style={{ marginTop:12 }}>Add Category</h4>
-      <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-        <input
-          placeholder="Name (e.g., Homework)"
-          value={catName}
-          onChange={e=>setCatName(e.target.value)}
-          style={{ minWidth:220 }}
-        />
-        <input
-          placeholder="Weight (0.2)"
-          type="number" step="0.01"
-          value={catWeight}
-          onChange={e=>setCatWeight(e.target.value === '' ? '' : Number(e.target.value))}
-          style={{ width:100 }}
-        />
-        <button onClick={addCategory}>Add</button>
-        <button onClick={clearCourseData} style={{ marginLeft:'auto' }}>Clear Course Data</button>
-      </div>
+      <div style={{ marginTop: 12 }}>
+        <h4 style={{ marginBottom: 4 }}>Add Category</h4>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input
+            placeholder="Name (e.g., Homework)"
+            value={newCatName}
+            onChange={e => setNewCatName(e.target.value)}
+            style={{ flex: '0 0 220px' }}
+          />
+          <input
+            placeholder="Weight (0.2)"
+            value={newCatWeight}
+            onChange={e => setNewCatWeight(e.target.value)}
+            style={{ width: 80 }}
+          />
+          <button onClick={addCategory}>Add</button>
+        </div>
 
-      {/* Categories list with Delete */}
-      <ul style={{ marginTop:8 }}>
-        {cats.map(c => (
-          <li key={c.id}>
-            {c.name}: {c.weight}{' '}
-            <button
-              onClick={async ()=>{
-                if (!c.id) return
-                await removeCat(c.id, courseId)
-                await loadAsg(courseId) // refresh assignment list since we delete those too
-              }}
-              title="Delete category (also deletes assignments in this category)"
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+        {categories.length > 0 && (
+          <ul style={{ marginTop: 8 }}>
+            {categories.map(c => (
+              <li key={c.id}>
+                {c.name}: {c.weight.toFixed(2)}{' '}
+                <button style={{ marginLeft: 8 }} onClick={() => deleteCategory(c.id!)}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {/* Add Assignment */}
-      <h4 style={{ marginTop:12 }}>Add Assignment</h4>
-      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-        <input
-          placeholder="Title"
-          value={aTitle}
-          onChange={e=>setATitle(e.target.value)}
-          style={{ minWidth:200 }}
-        />
-        <input
-          placeholder="Score (blank = remaining)"
-          type="number"
-          value={aScore}
-          onChange={e=>setAScore(e.target.value)}
-          style={{ width:160 }}
-        />
-        <input
-          placeholder="Max"
-          type="number"
-          value={aMax}
-          onChange={e=>setAMax(e.target.value)}
-          style={{ width:120 }}
-        />
-        <select value={aCatId} onChange={e=>setACatId(e.target.value)} style={{ minWidth:160 }}>
-          <option value="">Category</option>
-          {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <button onClick={addAssignment}>Add</button>
-      </div>
+      <div style={{ marginTop: 16 }}>
+        <h4 style={{ marginBottom: 4 }}>Add Assignment</h4>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input
+            placeholder="Title"
+            value={newTitle}
+            onChange={e => setNewTitle(e.target.value)}
+            style={{ flex: '1 0 180px' }}
+          />
+          <input
+            placeholder="Score (blank = remaining)"
+            value={newScore}
+            onChange={e => setNewScore(e.target.value)}
+            style={{ width: 150 }}
+          />
+          <input
+            placeholder="Max"
+            value={newMax}
+            onChange={e => setNewMax(e.target.value)}
+            style={{ width: 80 }}
+          />
+          <select
+            value={newCatId}
+            onChange={e => setNewCatId(e.target.value ? Number(e.target.value) : '')}
+          >
+            <option value="">Category</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <button onClick={addAssignment}>Add</button>
+        </div>
 
-      {/* Assignments list with Delete */}
-      <ul style={{ marginTop:8 }}>
-        {asg.map(a => (
-          <li key={a.id}>
-            {a.title} — {a.score ?? '–'}/{a.max} ({catNameById(a.categoryId)}){' '}
-            <button onClick={() => a.id && removeAsg(a.id, courseId)}>Delete</button>
-          </li>
-        ))}
-      </ul>
-    </div>
+        {assignments.length > 0 && (
+          <ul style={{ marginTop: 8 }}>
+            {assignments.map(a => {
+              const catName = categories.find(c => c.id === a.categoryId)?.name ?? '—'
+              const labelScore =
+                a.score === undefined ? '—/ ' + a.max : `${a.score}/${a.max}`
+              return (
+                <li key={a.id}>
+                  {a.title} — {labelScore} ({catName})
+                  <button style={{ marginLeft: 8 }} onClick={() => deleteAssignment(a.id!)}>
+                    Delete
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </section>
   )
 }

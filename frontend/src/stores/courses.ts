@@ -4,8 +4,9 @@ import { db, type Course } from '../lib/db'
 type State = {
   courses: Course[]
   load: () => Promise<void>
-  addCourse: (c: Omit<Course,'id'>) => Promise<number>
+  addCourse: (c: Omit<Course, 'id'>) => Promise<number>
   existsByName: (name: string) => Promise<boolean>
+  renameCourse: (id: number, name: string) => Promise<void>
 }
 
 export const useCourses = create<State>((set) => ({
@@ -26,5 +27,11 @@ export const useCourses = create<State>((set) => ({
   existsByName: async (name) => {
     const found = await db.courses.where('name').equals(name).first()
     return !!found
+  },
+
+  renameCourse: async (id, name) => {
+    await db.courses.update(id, { name })
+    const courses = await db.courses.toArray()
+    set({ courses })
   }
 }))
