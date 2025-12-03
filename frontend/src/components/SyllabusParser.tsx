@@ -63,11 +63,8 @@ export default function SyllabusParser({ courseId }: Props) {
 
   return (
     <section style={{ border: '1px solid #333', padding: 12, borderRadius: 4, marginBottom: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Step 1 – Paste Syllabus &amp; Extract Categories</h3>
-      <p style={{ marginTop: 0, color: '#bbbbbb', fontSize: 13 }}>
-        Paste the grading policy text from your syllabus. The parser looks for lines such as:
-        <code style={{ marginLeft: 4 }}>Homework 20%</code>, <code>Midterm 30%</code>, <code>Final 50%</code>.
-      </p>
+  
+
 
       <textarea
         value={text}

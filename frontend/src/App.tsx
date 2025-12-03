@@ -5,15 +5,13 @@ import ImportCSV from './components/ImportCSV'
 import CourseDetail from './components/CourseDetail'
 import ForecastPanel from './components/ForecastPanel'
 import ScenarioSolver from './components/ScenarioSolver'
+import './App.css'
 
 export default function App() {
   const { courses, load, addCourse, renameCourse } = useCourses()
   const [initialized, setInitialized] = useState(false)
-
-  // Local state for course name (user edits in textbox)
   const [localName, setLocalName] = useState('')
 
-  // Ensure a single course exists
   useEffect(() => {
     if (initialized) return
     setInitialized(true)
@@ -26,7 +24,6 @@ export default function App() {
         await addCourse({ name: 'My Course', target: 90 })
         await load()
       } else {
-        // if a course exists, sync localName with actual name
         const c = state.courses[0]
         if (c) setLocalName(c.name)
       }
@@ -35,7 +32,7 @@ export default function App() {
 
   const selected = courses[0]
 
-  // Sync localName whenever selected course changes
+  
   useEffect(() => {
     if (selected) {
       setLocalName(selected.name)
@@ -43,101 +40,135 @@ export default function App() {
   }, [selected])
 
   return (
-    <div style={{ minHeight: '100vh', background: '#101214', color: '#f5f5f5' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '16px 24px 32px' }}>
-
-        {/* Header */}
-        <header style={{ marginBottom: 16 }}>
-          <h1 style={{ margin: 0 }}>AI Grade Predictor & Planner</h1>
-          <p style={{ margin: '4px 0 0', color: '#bbbbbb' }}>
+    <div className="app-background">
+      <header className="site-header">
+        <div className="site-header-inner">
+          <h1 className="site-title">AI Grade Predictor & Planner</h1>
+          <p className="site-subtitle">
             Paste your syllabus, import grades, and estimate your final course outcome with an AI-assisted model.
           </p>
-        </header>
+        </div>
+      </header>
 
-        {/* Step Overview */}
-        <section
-          style={{
-            border: '1px solid #333',
-            borderRadius: 4,
-            padding: 10,
-            marginBottom: 16,
-            background: '#15171a'
-          }}
-        >
-          <strong>How to use this tool:</strong>
-          <ol style={{ margin: '6px 0 0 18px', fontSize: 13, color: '#cccccc' }}>
-            <li>Paste your syllabus and extract grading categories (Step 1).</li>
-            <li>Import grades from CSV or add assignments manually (Step 2 &amp; 3).</li>
-            <li>Run the forecast to see your expected final grade (Step 4).</li>
-            <li>Use the scenario solver to see what scores you need to hit a target (Step 5).</li>
-          </ol>
-        </section>
-
-        {/* Course Name Section */}
-        <section style={{ marginBottom: 16 }}>
-          <h3 style={{ marginBottom: 8 }}>Course Name</h3>
-
-          {selected && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              
-              {/* Input row */}
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input
-                  type="text"
-                  value={localName}
-                  onChange={e => setLocalName(e.target.value)}
-                  style={{
-                    width: 260,
-                    padding: '4px 6px',
-                    background: '#202225',
-                    color: '#f5f5f5',
-                    border: '1px solid #444',
-                    borderRadius: 4
-                  }}
-                  placeholder="e.g., CECS 451"
-                />
-
-                <button
-                  onClick={() => renameCourse(selected.id!, localName)}
-                  style={{
-                    padding: '4px 12px',
-                    background: '#2d7dd2',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Update Course
-                </button>
-              </div>
-
-              {/* Display current name */}
-              <div style={{ fontSize: 14, color: '#cccccc' }}>
-                <strong>Current Course Title:</strong> {selected.name}
-              </div>
-
-              {/* Target line */}
-              <div style={{ fontSize: 14, color: '#bbbbbb' }}>
-                <strong>Target:</strong> {selected.target ?? 90}%
+      <main className="container">
+        {selected && (
+          <section className="course-bar">
+            <div className="course-bar-main">
+              <div className="course-bar-label">Course</div>
+              <div className="course-bar-name">{selected.name}</div>
+              <div className="course-bar-target">
+                Target: <span>{selected.target ?? 90}%</span>
               </div>
             </div>
-          )}
-        </section>
 
-        <hr style={{ borderColor: '#333', margin: '16px 0' }} />
-
-        {/* Steps 1–5 components */}
-        {selected && (
-          <>
-            <SyllabusParser courseId={selected.id!} />
-            <ImportCSV courseId={selected.id!} />
-            <CourseDetail courseId={selected.id!} />
-            <ForecastPanel courseId={selected.id!} />
-            <ScenarioSolver courseId={selected.id!} />
-          </>
+            <div className="course-bar-edit">
+              <input
+                type="text"
+                value={localName}
+                onChange={e => setLocalName(e.target.value)}
+                placeholder="e.g., CECS 451"
+              />
+              <button onClick={() => renameCourse(selected.id!, localName)}>
+                Update
+              </button>
+            </div>
+          </section>
         )}
-      </div>
+
+        {selected && (
+          <section className="steps-timeline">
+            {/* Step 1 */}
+            <div className="step-row left">
+              <article className="step-card">
+                <div className="step-number">1</div>
+                <div className="step-content">
+                  <div className="step-label">Step 1</div>
+                  <h2 className="step-title">Paste Syllabus &amp; Extract Categories</h2>
+                  <p className="step-description">
+                    Paste the grading policy from your syllabus. The app parses categories
+                    like Homework, Midterm, and Final and converts them into weights.
+                  </p>
+                  <div className="step-body">
+                    <SyllabusParser courseId={selected.id!} />
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            {/* Step 2 */}
+            <div className="step-row right">
+              <article className="step-card">
+                <div className="step-number">2</div>
+                <div className="step-content">
+                  <div className="step-label">Step 2</div>
+                  <h2 className="step-title">Import Grades (CSV)</h2>
+                  <p className="step-description">
+                    Upload a CSV export from Canvas or your LMS and map each row to the
+                    syllabus categories you just created.
+                  </p>
+                  <div className="step-body">
+                    <ImportCSV courseId={selected.id!} />
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            {/* Step 3 */}
+            <div className="step-row left">
+              <article className="step-card">
+                <div className="step-number">3</div>
+                <div className="step-content">
+                  <div className="step-label">Step 3</div>
+                  <h2 className="step-title">Review &amp; Edit Course Detail</h2>
+                  <p className="step-description">
+                    Fine-tune your grading categories and assignments. Add missing items
+                    or tweak weights to match your actual syllabus.
+                  </p>
+                  <div className="step-body">
+                    <CourseDetail courseId={selected.id!} />
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            {/* Step 4 */}
+            <div className="step-row right">
+              <article className="step-card">
+                <div className="step-number">4</div>
+                <div className="step-content">
+                  <div className="step-label">Step 4</div>
+                  <h2 className="step-title">Forecast Final Grade</h2>
+                  <p className="step-description">
+                    Run the forecast model to estimate your expected final grade and see
+                    a likely range based on your current performance.
+                  </p>
+                  <div className="step-body">
+                    <ForecastPanel courseId={selected.id!} />
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            {/* Step 5 */}
+            <div className="step-row left">
+              <article className="step-card">
+                <div className="step-number">5</div>
+                <div className="step-content">
+                  <div className="step-label">Step 5</div>
+                  <h2 className="step-title">Scenario Solver (What Do I Need?)</h2>
+                  <p className="step-description">
+                    Set a target final grade and see what average you&apos;ll need on the
+                    remaining work in each category to reach it.
+                  </p>
+                  <div className="step-body">
+                    <ScenarioSolver courseId={selected.id!} />
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+        )}
+      </main>
     </div>
   )
 }

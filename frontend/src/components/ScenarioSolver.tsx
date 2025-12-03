@@ -31,11 +31,6 @@ export default function ScenarioSolver({ courseId }: { courseId: number }) {
 
   return (
     <section style={{ border: '1px solid #333', padding: 12, borderRadius: 4 }}>
-      <h3 style={{ marginTop: 0 }}>Step 5 – Scenario Solver (What Do I Need?)</h3>
-      <p style={{ marginTop: 0, color: '#bbbbbb', fontSize: 13 }}>
-        Choose a target final grade and see what you need to average on the remaining work
-        in order to reach it.
-      </p>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <label style={{ fontWeight: 600 }}>Target Grade (%):</label>
@@ -78,7 +73,7 @@ export default function ScenarioSolver({ courseId }: { courseId: number }) {
             </>
           )}
 
-          {/* Not feasible */}
+          
           {!result.feasible && (
             <p style={{ color: '#ff6b6b', fontWeight: 600 }}>
               It is not mathematically possible to reach {target}%.

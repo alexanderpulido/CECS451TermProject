@@ -37,10 +37,7 @@ export default function ForecastPanel({ courseId }: { courseId: number }) {
 
   return (
     <section style={{ border: '1px solid #333', padding: 12, borderRadius: 4, marginBottom: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Step 4 – Forecast Final Grade</h3>
-      <p style={{ marginTop: 0, color: '#bbbbbb', fontSize: 13 }}>
-        The model uses your completed assignments and syllabus weights to estimate your final grade and a likely range.
-      </p>
+
 
       <button onClick={run} disabled={loading}>
         {loading ? 'Running…' : 'Run Forecast'}

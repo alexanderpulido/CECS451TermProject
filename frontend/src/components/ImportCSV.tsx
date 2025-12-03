@@ -13,12 +13,12 @@ export default function ImportCSV({ courseId }: { courseId: number }) {
   const handleFile = async (file: File) => {
     setStatus('')
 
-    // 1) Load latest categories from Dexie
+    
     const list = await db.categories.where('courseId').equals(courseId).toArray()
     const currentCats = list.map(c => ({ id: c.id!, name: c.name }))
     setCats(currentCats)
 
-    // 2) Parse CSV
+   
     parse<Row>(file, {
       header: true,
       skipEmptyLines: true,
@@ -26,7 +26,7 @@ export default function ImportCSV({ courseId }: { courseId: number }) {
         const cleaned = res.data.filter((r: Row) => r.Title)
         setRows(cleaned)
 
-        // 3) Try to auto-map based on Category text
+       
         const next: Record<number, number> = {}
         cleaned.forEach((r: Row, i: number) => {
           const found = currentCats.find(
@@ -64,10 +64,7 @@ export default function ImportCSV({ courseId }: { courseId: number }) {
 
   return (
     <section style={{ border: '1px solid #333', padding: 12, borderRadius: 4, marginBottom: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Step 2 – Import Grades (CSV)</h3>
-      <p style={{ marginTop: 0, color: '#bbbbbb', fontSize: 13 }}>
-        Upload a CSV export from your LMS (Canvas, etc.). Then map each row to a syllabus category.
-      </p>
+  
 
       <input
         type="file"

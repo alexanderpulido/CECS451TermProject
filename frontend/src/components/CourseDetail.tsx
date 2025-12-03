@@ -71,10 +71,7 @@ export default function CourseDetail({ courseId }: { courseId: number }) {
     <section style={{ border: '1px solid #333', padding: 12, borderRadius: 4, marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h3 style={{ marginTop: 0 }}>Step 3 – Review &amp; Edit Course Detail</h3>
-          <p style={{ margin: '0 0 4px', color: '#bbbbbb', fontSize: 13 }}>
-            View and edit grading categories and assignments for this course.
-          </p>
+          
           <span style={{ fontSize: 13 }}>
             Categories total weight: {totalWeight.toFixed(2)} (aim for 1.0)
           </span>
